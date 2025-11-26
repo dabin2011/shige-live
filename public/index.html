@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>シゲシゲ動画 コメント欄</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; }
+    #chat { margin-top: 20px; }
+    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; background: #fff; }
+    input, button { margin: 5px; padding: 8px; }
+  </style>
 </head>
 <body>
   <h1>🎥 シゲシゲ動画 コメント欄</h1>
@@ -94,38 +100,11 @@
         messages.appendChild(p);
       });
     });
-  </script>
-</body>
-</html>
 
-    // コメント送信
-    function sendComment() {
-      const comment = document.getElementById("comment").value;
-      const user = auth.currentUser;
-      if (user) {
-        db.collection("comments").add({
-          text: comment,
-          user: user.email,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        document.getElementById("comment").value = "";
-      } else {
-        alert("ログインしてください");
-      }
-    }
-
-    // コメントリアルタイム表示
-    db.collection("comments").orderBy("timestamp")
-      .onSnapshot(snapshot => {
-        const messages = document.getElementById("messages");
-        messages.innerHTML = "";
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const p = document.createElement("p");
-          p.textContent = `${data.user}: ${data.text}`;
-          messages.appendChild(p);
-        });
-      });
+    // 🔑 関数をグローバルに公開
+    window.signup = signup;
+    window.login = login;
+    window.sendComment = sendComment;
   </script>
 </body>
 </html>
