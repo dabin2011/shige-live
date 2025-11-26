@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>シゲシゲ動画 コメント欄</title>
+  <title>ShigeX コメント＆プロフィール</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f9f9f9; }
     #messages { border: 1px solid #ccc; padding: 10px; height: 240px; overflow-y: auto; background: #fff; }
@@ -10,10 +10,11 @@
     #status { margin-top: 10px; font-size: 12px; color: #333; }
     .error { color: #b00020; }
     .info { color: #0057d9; }
+    #profile { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h1>🎥 シゲシゲ動画 コメント欄</h1>
+  <h1>🎥 ShigeX コメント欄</h1>
 
   <!-- ステータス表示 -->
   <div id="status" class="info">未ログイン</div>
@@ -35,15 +36,28 @@
     <button onclick="sendComment()">送信</button>
   </div>
 
+  <!-- プロフィール画像設定 -->
+  <div id="profile">
+    <h3>プロフィール画像 (ShigeX ID)</h3>
+    <input id="imageUrl" type="text" placeholder="Imgurの画像URLを貼り付け">
+    <button onclick="saveProfileImageUrl(document.getElementById('imageUrl').value)">
+      URL保存
+    </button>
+    <div>
+      <img id="preview" src="" alt="プロフィール画像" width="120">
+    </div>
+  </div>
+
   <!-- Firebase SDK v9 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { 
-      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
+    import {
+      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
       signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { 
-      getFirestore, collection, addDoc, onSnapshot, orderBy, query, Timestamp 
+    import {
+      getFirestore, collection, addDoc, onSnapshot, orderBy, query, Timestamp,
+      doc, setDoc, getDoc
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
     // Firebase設定（Firebase Consoleからコピー）
@@ -68,11 +82,13 @@
     }
 
     // 認証状態監視
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
+        await loadProfileImage(); // ログイン時にプロフィール画像を読み込む
       } else {
         setStatus("未ログイン", "info");
+        document.getElementById("preview").src = "";
       }
     });
 
@@ -82,8 +98,18 @@
       const password = document.getElementById("password").value;
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
-        alert("登録成功: " + cred.user.email);
-        setStatus("登録成功: " + cred.user.email, "info");
+        const user = cred.user;
+
+        // Firestoreにユーザードキュメントを作成
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          createdAt: new Date(),
+          profileImageUrl: null,
+          points: 0
+        });
+
+        alert("登録成功: " + user.email);
+        setStatus("登録成功: " + user.email, "info");
       } catch (err) {
         alert("エラー: " + err.message);
         setStatus("登録エラー: " + err.message, "error");
@@ -119,6 +145,15 @@
       const provider = new GoogleAuthProvider();
       try {
         const result = await signInWithPopup(auth, provider);
+
+        // Firestoreにユーザードキュメントがなければ作成・更新
+        await setDoc(doc(db, "users", result.user.uid), {
+          email: result.user.email,
+          createdAt: new Date(),
+          profileImageUrl: null,
+          points: 0
+        }, { merge: true });
+
         alert("Googleログイン成功: " + result.user.email);
         setStatus("Googleログイン成功: " + result.user.email, "info");
       } catch (err) {
@@ -155,15 +190,15 @@
       }
     }
 
-    // コメントリアルタイム表示（期限チェックはクライアント側）
+    // コメントリアルタイム表示
     const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       messagesEl.innerHTML = "";
       const now = Date.now();
-      snapshot.forEach(doc => {
-        const data = doc.data();
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
         const exp = data.expireAt?.toDate().getTime();
-        if (exp > now) { // 期限内なら必ず表示
+        if (!exp || exp > now) {
           const p = document.createElement("p");
           p.textContent = `${data.user}: ${data.text}`;
           messagesEl.appendChild(p);
@@ -171,12 +206,51 @@
       });
     });
 
+    // プロフィール画像URLを保存
+    async function saveProfileImageUrl(url) {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("ログインしてください");
+        return;
+      }
+      if (!url || !/^https?:\/\//.test(url)) {
+        alert("有効な画像URLを入力してください");
+        return;
+      }
+
+      await setDoc(doc(db, "users", user.uid), {
+        profileImageUrl: url
+      }, { merge: true });
+
+      document.getElementById("preview").src = url;
+      alert("プロフィール画像URLを保存しました！");
+    }
+
+    // Firestoreからプロフィール画像を読み込む
+    async function loadProfileImage() {
+      const user = auth.currentUser;
+      if (!user) return;
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.profileImageUrl) {
+          document.getElementById("preview").src = data.profileImageUrl;
+        } else {
+          document.getElementById("preview").src = "";
+        }
+      } else {
+        document.getElementById("preview").src = "";
+      }
+    }
+
     // グローバル公開
     window.signup = signup;
     window.login = login;
     window.logout = logout;
     window.loginWithGoogle = loginWithGoogle;
     window.sendComment = sendComment;
+    window.saveProfileImageUrl = saveProfileImageUrl;
+    window.loadProfileImage = loadProfileImage;
   </script>
 </body>
 </html>
