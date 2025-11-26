@@ -4,13 +4,15 @@
   <meta charset="UTF-8">
   <title>ShigeX コメント＆プロフィール</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9f9f9; }
+    body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 0; padding: 20px; }
+    h1 { margin-top: 0; }
     #messages { border: 1px solid #ccc; padding: 10px; height: 240px; overflow-y: auto; background: #fff; }
     input, button { margin: 5px; padding: 8px; }
     #status { margin-top: 10px; font-size: 12px; color: #333; }
     .error { color: #b00020; }
     .info { color: #0057d9; }
     #profile { margin-top: 20px; }
+    img { border-radius: 6px; border: 1px solid #ddd; }
   </style>
 </head>
 <body>
@@ -39,10 +41,8 @@
   <!-- プロフィール画像設定 -->
   <div id="profile">
     <h3>プロフィール画像 (ShigeX ID)</h3>
-    <input id="imageUrl" type="text" placeholder="Imgurの画像URLを貼り付け">
-    <button onclick="saveProfileImageUrl(document.getElementById('imageUrl').value)">
-      URL保存
-    </button>
+    <input type="file" id="uploadImage" accept="image/*">
+    <button onclick="uploadProfileImage()">アップロード</button>
     <div>
       <img id="preview" src="" alt="プロフィール画像" width="120">
     </div>
@@ -78,14 +78,13 @@
     function setStatus(msg, type="info") {
       statusEl.textContent = msg;
       statusEl.className = type;
-      console.log(msg);
     }
 
     // 認証状態監視
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
-        await loadProfileImage(); // ログイン時にプロフィール画像を読み込む
+        await loadProfileImage();
       } else {
         setStatus("未ログイン", "info");
         document.getElementById("preview").src = "";
@@ -99,33 +98,26 @@
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         const user = cred.user;
-
-        // Firestoreにユーザードキュメントを作成
         await setDoc(doc(db, "users", user.uid), {
           email: user.email,
           createdAt: new Date(),
           profileImageUrl: null,
           points: 0
         });
-
-        alert("登録成功: " + user.email);
         setStatus("登録成功: " + user.email, "info");
       } catch (err) {
-        alert("エラー: " + err.message);
         setStatus("登録エラー: " + err.message, "error");
       }
     }
 
-    // ログイン（メール/パスワード）
+    // ログイン
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
       try {
         const cred = await signInWithEmailAndPassword(auth, email, password);
-        alert("ログイン成功: " + cred.user.email);
         setStatus("ログイン成功: " + cred.user.email, "info");
       } catch (err) {
-        alert("エラー: " + err.message);
         setStatus("ログインエラー: " + err.message, "error");
       }
     }
@@ -145,52 +137,40 @@
       const provider = new GoogleAuthProvider();
       try {
         const result = await signInWithPopup(auth, provider);
-
-        // Firestoreにユーザードキュメントがなければ作成・更新
         await setDoc(doc(db, "users", result.user.uid), {
           email: result.user.email,
           createdAt: new Date(),
           profileImageUrl: null,
           points: 0
         }, { merge: true });
-
-        alert("Googleログイン成功: " + result.user.email);
         setStatus("Googleログイン成功: " + result.user.email, "info");
       } catch (err) {
-        alert("Googleログインエラー: " + err.message);
         setStatus("Googleログインエラー: " + err.message, "error");
       }
     }
 
-    // コメント送信（expireAtを4時間後に設定）
+    // コメント送信（4時間で期限切れ）
     async function sendComment() {
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
-      if (!user) {
-        alert("ログインしてください");
-        return;
-      }
-      if (!comment) {
-        setStatus("コメントを入力してください", "error");
-        return;
-      }
+      if (!user) { alert("ログインしてください"); return; }
+      if (!comment) { setStatus("コメントを入力してください", "error"); return; }
       try {
         const now = Date.now();
         await addDoc(collection(db, "comments"), {
           text: comment,
           user: user.email,
           timestamp: Timestamp.now(),
-          expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000)) // 4時間後
+          expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000))
         });
         document.getElementById("comment").value = "";
         setStatus("コメント送信成功", "info");
       } catch (err) {
-        alert("エラー: " + err.message);
         setStatus("コメント送信エラー: " + err.message, "error");
       }
     }
 
-    // コメントリアルタイム表示
+    // コメントリアルタイム表示（期限切れは非表示）
     const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       messagesEl.innerHTML = "";
@@ -206,51 +186,102 @@
       });
     });
 
-    // プロフィール画像URLを保存
-    async function saveProfileImageUrl(url) {
+    // GitHubに画像アップロードしてFirestoreに保存
+    async function uploadProfileImage() {
       const user = auth.currentUser;
-      if (!user) {
-        alert("ログインしてください");
-        return;
-      }
-      if (!url || !/^https?:\/\//.test(url)) {
-        alert("有効な画像URLを入力してください");
-        return;
-      }
+      if (!user) { alert("ログインしてください"); return; }
 
-      await setDoc(doc(db, "users", user.uid), {
-        profileImageUrl: url
-      }, { merge: true });
+      const file = document.getElementById("uploadImage").files[0];
+      if (!file) { alert("ファイルを選択してください"); return; }
 
-      document.getElementById("preview").src = url;
-      alert("プロフィール画像URLを保存しました！");
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(",")[1];
+
+        // GitHub API（contents API）でファイル作成 / 更新
+        const repoOwner = "dabin2011";               // ← GitHubユーザー名
+        const repoName  = "shigex-images";            // ← リポジトリ名
+        const folder    = "profiles";                 // ← 画像フォルダ
+        const fileName  = `${user.uid}.jpg`;          // ← uidで一意管理
+        const githubToken = "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";      // ← PAT（repo権限）
+
+        const urlForPut = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folder}/${fileName}`;
+
+        // 既存ファイルがある場合はshaが必要なので取得（なければ404 → 新規作成）
+        let existingSha = null;
+        try {
+          const headRes = await fetch(urlForPut, {
+            headers: { "Authorization": `token ${githubToken}` }
+          });
+          if (headRes.ok) {
+            const headJson = await headRes.json();
+            existingSha = headJson.sha;
+          }
+        } catch (e) {
+          // 取得失敗は新規作成として継続
+        }
+
+        const putBody = {
+          message: `Upload profile image for ${user.uid}`,
+          content: base64,
+          ...(existingSha ? { sha: existingSha } : {})
+        };
+
+        const putRes = await fetch(urlForPut, {
+          method: "PUT",
+          headers: {
+            "Authorization": `token ${githubToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(putBody)
+        });
+
+        if (!putRes.ok) {
+          const errText = await putRes.text();
+          setStatus("GitHubアップロード失敗: " + errText, "error");
+          return;
+        }
+
+        // 公開URL（raw.githubusercontent.com）
+        const publicUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${folder}/${fileName}`;
+
+        // Firestoreに保存
+        await setDoc(doc(db, "users", user.uid), {
+          profileImageUrl: publicUrl
+        }, { merge: true });
+
+        // 画像キャッシュ破棄のためのクエリ付与（更新直後の反映を安定させる）
+        const bust = publicUrl + `?t=${Date.now()}`;
+        document.getElementById("preview").src = bust;
+        setStatus("プロフィール画像を更新しました！", "info");
+      };
+
+      reader.readAsDataURL(file);
     }
 
     // Firestoreからプロフィール画像を読み込む
     async function loadProfileImage() {
       const user = auth.currentUser;
       if (!user) return;
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
         const data = snap.data();
-        if (data.profileImageUrl) {
-          document.getElementById("preview").src = data.profileImageUrl;
-        } else {
-          document.getElementById("preview").src = "";
+        if (data && data.profileImageUrl) {
+          // 初回表示（キャッシュ対策）
+          document.getElementById("preview").src = data.profileImageUrl + `?t=${Date.now()}`;
         }
-      } else {
-        document.getElementById("preview").src = "";
+      } catch (err) {
+        setStatus("プロフィール画像読み込みエラー: " + err.message, "error");
       }
     }
-
-    // グローバル公開
-    window.signup = signup;
-    window.login = login;
-    window.logout = logout;
-    window.loginWithGoogle = loginWithGoogle;
-    window.sendComment = sendComment;
-    window.saveProfileImageUrl = saveProfileImageUrl;
-    window.loadProfileImage = loadProfileImage;
   </script>
+
+  <!-- 使い方メモ（開発中はコメントアウトでOK）
+  1) 上記の firebaseConfig をあなたの値に置き換える
+  2) GitHub: 公開リポジトリ shigex-images を作成し、profiles/ フォルダを用意
+  3) 変数 repoOwner, repoName, folder, YOUR_GITHUB_TOKEN を設定
+  4) トークンは repo スコープを付与した PAT を使用
+  5) セキュリティのため、本番はトークンをフロントに置かず、Cloud Functions や軽いバックエンド経由にする
+  -->
 </body>
 </html>
