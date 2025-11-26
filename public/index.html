@@ -33,7 +33,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
       from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } 
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, where } 
       from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
     // Firebase設定（Firebase Consoleからコピー）
@@ -72,7 +72,7 @@
       }
     }
 
-    // コメント送信
+    // コメント送信（expireAtを4時間後に設定）
     async function sendComment() {
       const comment = document.getElementById("comment").value;
       const user = auth.currentUser;
@@ -80,7 +80,8 @@
         await addDoc(collection(db, "comments"), {
           text: comment,
           user: user.email,
-          timestamp: new Date()
+          timestamp: new Date(),
+          expireAt: new Date(Date.now() + 4 * 60 * 60 * 1000) // 4時間後
         });
         document.getElementById("comment").value = "";
       } else {
@@ -88,8 +89,14 @@
       }
     }
 
-    // コメントリアルタイム表示
-    const q = query(collection(db, "comments"), orderBy("timestamp"));
+    // コメントリアルタイム表示（期限内のみ）
+    const now = new Date();
+    const q = query(
+      collection(db, "comments"),
+      orderBy("timestamp"),
+      where("expireAt", ">", now)
+    );
+
     onSnapshot(q, (snapshot) => {
       const messages = document.getElementById("messages");
       messages.innerHTML = "";
