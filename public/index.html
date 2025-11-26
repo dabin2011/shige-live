@@ -25,6 +25,7 @@
     <button onclick="signup()">新規登録</button>
     <button onclick="login()">ログイン</button>
     <button onclick="logout()">ログアウト</button>
+    <button onclick="loginWithGoogle()">Googleでログイン</button>
   </div>
 
   <!-- コメント欄 -->
@@ -39,7 +40,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { 
       getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-      signOut, onAuthStateChanged 
+      signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
     import { 
       getFirestore, collection, addDoc, onSnapshot, orderBy, query, Timestamp 
@@ -47,9 +48,9 @@
 
     // Firebase設定（Firebase Consoleからコピー）
     const firebaseConfig = {
-      apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
-      authDomain: "shige-live-b70a7.firebaseapp.com",
-      projectId: "shige-live-b70a7",
+      apiKey: "YOUR_API_KEY",
+      authDomain: "shigeshige-video.firebaseapp.com",
+      projectId: "shigeshige-video",
     };
 
     // 初期化
@@ -89,7 +90,7 @@
       }
     }
 
-    // ログイン
+    // ログイン（メール/パスワード）
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -110,6 +111,19 @@
         setStatus("ログアウトしました", "info");
       } catch (err) {
         setStatus("ログアウトエラー: " + err.message, "error");
+      }
+    }
+
+    // Googleログイン
+    async function loginWithGoogle() {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        alert("Googleログイン成功: " + result.user.email);
+        setStatus("Googleログイン成功: " + result.user.email, "info");
+      } catch (err) {
+        alert("Googleログインエラー: " + err.message);
+        setStatus("Googleログインエラー: " + err.message, "error");
       }
     }
 
@@ -161,6 +175,7 @@
     window.signup = signup;
     window.login = login;
     window.logout = logout;
+    window.loginWithGoogle = loginWithGoogle;
     window.sendComment = sendComment;
   </script>
 </body>
