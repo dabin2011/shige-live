@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>シゲシゲ動画 コメント欄</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f9f9f9; }
     #chat { margin-top: 20px; }
     #messages { border: 1px solid #ccc; padding: 10px; height: 240px; overflow-y: auto; background: #fff; }
     input, button { margin: 5px; padding: 8px; }
-    #status { margin-top: 10px; color: #333; font-size: 12px; }
+    #status { margin-top: 10px; font-size: 12px; color: #333; }
     .error { color: #b00020; }
     .info { color: #0057d9; }
   </style>
@@ -17,12 +17,12 @@
   <h1>🎥 シゲシゲ動画 コメント欄</h1>
 
   <!-- ステータス表示 -->
-  <div id="status" class="info">準備中…</div>
+  <div id="status" class="info">未ログイン</div>
 
   <!-- ログインフォーム -->
   <div>
-    <input id="email" type="text" placeholder="メールアドレス" />
-    <input id="password" type="password" placeholder="パスワード" />
+    <input id="email" type="text" placeholder="メールアドレス">
+    <input id="password" type="password" placeholder="パスワード">
     <button onclick="signup()">新規登録</button>
     <button onclick="login()">ログイン</button>
     <button onclick="logout()">ログアウト</button>
@@ -31,38 +31,29 @@
   <!-- コメント欄 -->
   <div id="chat">
     <div id="messages"></div>
-    <input id="comment" type="text" placeholder="コメントを入力..." />
+    <input id="comment" type="text" placeholder="コメントを入力...">
     <button onclick="sendComment()">送信</button>
   </div>
 
-  <!-- Firebase SDK v9 (modular) -->
+  <!-- Firebase SDK v9 -->
   <script type="module">
-    // --- SDK読み込み ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import {
-      getAuth,
-      createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      signOut,
-      onAuthStateChanged
+    import { 
+      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
+      signOut, onAuthStateChanged 
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import {
-      getFirestore,
-      collection,
-      addDoc,
-      onSnapshot,
-      orderBy,
-      query
+    import { 
+      getFirestore, collection, addDoc, onSnapshot, orderBy, query, Timestamp 
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-    // --- 設定（Firebase Consoleから正しい値を入れてください） ---
+    // Firebase設定（Firebase Consoleからコピー）
     const firebaseConfig = {
       apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
       authDomain: "shige-live-b70a7.firebaseapp.com",
-      projectId: "shige-live-b70a7"
+      projectId: "shige-live-b70a7",
     };
 
-    // --- 初期化 ---
+    // 初期化
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -70,20 +61,13 @@
     const statusEl = document.getElementById("status");
     const messagesEl = document.getElementById("messages");
 
-    // --- 状態表示ユーティリティ ---
-    function setStatus(message, type = "info") {
-      statusEl.textContent = message;
+    function setStatus(msg, type="info") {
+      statusEl.textContent = msg;
       statusEl.className = type;
-      console.log(`[STATUS] ${message}`);
+      console.log(msg);
     }
 
-    function appendMessageLine(text) {
-      const p = document.createElement("p");
-      p.textContent = text;
-      messagesEl.appendChild(p);
-    }
-
-    // --- 認証状態監視 ---
+    // 認証状態監視
     onAuthStateChanged(auth, (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
@@ -92,65 +76,49 @@
       }
     });
 
-    // --- 新規登録 ---
+    // 新規登録
     async function signup() {
-      console.log("signup() called");
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
-      if (!email || !password) {
-        setStatus("メールとパスワードを入力してください", "error");
-        return;
-      }
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
-        setStatus(`登録成功：${cred.user.email}`, "info");
-        alert(`登録成功：${cred.user.email}`);
+        alert("登録成功: " + cred.user.email);
+        setStatus("登録成功: " + cred.user.email, "info");
       } catch (err) {
-        console.error("Signup error:", err);
-        setStatus(`登録エラー：${err.message}`, "error");
-        alert(`エラー：${err.message}`);
+        alert("エラー: " + err.message);
+        setStatus("登録エラー: " + err.message, "error");
       }
     }
 
-    // --- ログイン ---
+    // ログイン
     async function login() {
-      console.log("login() called");
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
-      if (!email || !password) {
-        setStatus("メールとパスワードを入力してください", "error");
-        return;
-      }
       try {
         const cred = await signInWithEmailAndPassword(auth, email, password);
-        setStatus(`ログイン成功：${cred.user.email}`, "info");
-        alert(`ログイン成功：${cred.user.email}`);
+        alert("ログイン成功: " + cred.user.email);
+        setStatus("ログイン成功: " + cred.user.email, "info");
       } catch (err) {
-        console.error("Login error:", err);
-        setStatus(`ログインエラー：${err.message}`, "error");
-        alert(`エラー：${err.message}`);
+        alert("エラー: " + err.message);
+        setStatus("ログインエラー: " + err.message, "error");
       }
     }
 
-    // --- ログアウト ---
+    // ログアウト
     async function logout() {
-      console.log("logout() called");
       try {
         await signOut(auth);
         setStatus("ログアウトしました", "info");
       } catch (err) {
-        console.error("Logout error:", err);
-        setStatus(`ログアウトエラー：${err.message}`, "error");
+        setStatus("ログアウトエラー: " + err.message, "error");
       }
     }
 
-    // --- コメント送信（expireAtを4時間後に設定） ---
+    // コメント送信（expireAtを4時間後に設定）
     async function sendComment() {
-      console.log("sendComment() called");
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
       if (!user) {
-        setStatus("コメント送信にはログインが必要です", "error");
         alert("ログインしてください");
         return;
       }
@@ -163,53 +131,8 @@
         await addDoc(collection(db, "comments"), {
           text: comment,
           user: user.email,
-          timestamp: new Date(now),
-          expireAt: new Date(now + 4 * 60 * 60 * 1000) // 4時間後
+          timestamp: Timestamp.now(),
+          expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000)) // 4時間後
         });
         document.getElementById("comment").value = "";
-        setStatus("コメントを送信しました", "info");
-      } catch (err) {
-        console.error("Send comment error:", err);
-        setStatus(`コメント送信エラー：${err.message}`, "error");
-        alert(`エラー：${err.message}`);
-      }
-    }
-
-    // --- コメント取得（安全のため、期限フィルタはクライアント側で実施） ---
-    // 複合インデックスが必要な where + orderBy を避けるため、
-    // まず timestamp で並べ、表示時に expireAt を評価してフィルタします。
-    try {
-      const commentsQuery = query(collection(db, "comments"), orderBy("timestamp", "asc"));
-      onSnapshot(
-        commentsQuery,
-        (snapshot) => {
-          messagesEl.innerHTML = "";
-          const now = Date.now();
-          snapshot.forEach((doc) => {
-            const d = doc.data();
-            // 期限内のみ表示（expireAtが無い場合は表示しない）
-            const exp = d.expireAt?.toDate ? d.expireAt.toDate().getTime() : (d.expireAt instanceof Date ? d.expireAt.getTime() : null);
-            if (exp && exp > now) {
-              appendMessageLine(`${d.user}: ${d.text}`);
-            }
-          });
-        },
-        (err) => {
-          console.error("onSnapshot error:", err);
-          setStatus(`コメント取得エラー：${err.message}`, "error");
-        }
-      );
-      setStatus("準備完了", "info");
-    } catch (err) {
-      console.error("Query setup error:", err);
-      setStatus(`初期化エラー：${err.message}`, "error");
-    }
-
-    // --- グローバル公開（onclick対策） ---
-    window.signup = signup;
-    window.login = login;
-    window.logout = logout;
-    window.sendComment = sendComment;
-  </script>
-</body>
-</html>
+        setStatus("コメント送信成功
