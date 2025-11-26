@@ -135,4 +135,34 @@
           expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000)) // 4時間後
         });
         document.getElementById("comment").value = "";
-        setStatus("コメント送信成功
+        setStatus("コメント送信成功", "info");
+      } catch (err) {
+        alert("エラー: " + err.message);
+        setStatus("コメント送信エラー: " + err.message, "error");
+      }
+    }
+
+    // コメントリアルタイム表示（期限チェックはクライアント側）
+    const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      messagesEl.innerHTML = "";
+      const now = Date.now();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const exp = data.expireAt?.toDate().getTime();
+        if (exp > now) {
+          const p = document.createElement("p");
+          p.textContent = `${data.user}: ${data.text}`;
+          messagesEl.appendChild(p);
+        }
+      });
+    });
+
+    // グローバル公開
+    window.signup = signup;
+    window.login = login;
+    window.logout = logout;
+    window.sendComment = sendComment;
+  </script>
+</body>
+</html>
