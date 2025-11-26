@@ -38,9 +38,9 @@
 
     // Firebase設定（Firebase Consoleからコピー）
     const firebaseConfig = {
-      apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
-      authDomain: "shige-live-b70a7.firebaseapp.com",
-      projectId: "shige-live-b70a7",
+      apiKey: "YOUR_API_KEY",
+      authDomain: "shigeshige-video.firebaseapp.com",
+      projectId: "shigeshige-video",
     };
 
     // 初期化
@@ -57,6 +57,7 @@
         alert("登録成功: " + userCredential.user.email);
       } catch (err) {
         alert("エラー: " + err.message);
+        console.error(err);
       }
     }
 
@@ -69,6 +70,7 @@
         alert("ログイン成功: " + userCredential.user.email);
       } catch (err) {
         alert("エラー: " + err.message);
+        console.error(err);
       }
     }
 
