@@ -55,9 +55,10 @@
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         alert("登録成功: " + userCredential.user.email);
+        console.log("登録成功:", userCredential.user);
       } catch (err) {
         alert("エラー: " + err.message);
-        console.error(err);
+        console.error("登録エラー:", err);
       }
     }
 
@@ -68,9 +69,10 @@
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         alert("ログイン成功: " + userCredential.user.email);
+        console.log("ログイン成功:", userCredential.user);
       } catch (err) {
         alert("エラー: " + err.message);
-        console.error(err);
+        console.error("ログインエラー:", err);
       }
     }
 
