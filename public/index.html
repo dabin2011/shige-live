@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>シゲシゲ動画 コメント欄</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; }
+    #chat { margin-top: 20px; }
+    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; background: #fff; }
+    input, button { margin: 5px; padding: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🎥 シゲシゲ動画 コメント欄</h1>
+
+  <!-- ログインフォーム -->
+  <div>
+    <input id="email" type="text" placeholder="メールアドレス">
+    <input id="password" type="password" placeholder="パスワード">
+    <button onclick="signup()">新規登録</button>
+    <button onclick="login()">ログイン</button>
+  </div>
+
+  <!-- コメント欄 -->
+  <div id="chat">
+    <div id="messages"></div>
+    <input id="comment" type="text" placeholder="コメントを入力...">
+    <button onclick="sendComment()">送信</button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+
+  <script>
+    // Firebase設定（Firebase Consoleから取得）
+    const firebaseConfig = {
+      apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
+      authDomain: "shige-live-b70a7.firebaseapp.com",
+      projectId: "shige-live-b70a7",
+    };
+
+    // 初期化
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // 新規登録
+    function signup() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(user => alert("登録成功: " + user.user.email))
+        .catch(err => alert("エラー: " + err.message));
+    }
+
+    // ログイン
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then(user => alert("ログイン成功: " + user.user.email))
+        .catch(err => alert("エラー: " + err.message));
+    }
+
+    // コメント送信
+    function sendComment() {
+      const comment = document.getElementById("comment").value;
+      const user = auth.currentUser;
+      if (user) {
+        db.collection("comments").add({
+          text: comment,
+          user: user.email,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        document.getElementById("comment").value = "";
+      } else {
+        alert("ログインしてください");
+      }
+    }
+
+    // コメントリアルタイム表示
+    db.collection("comments").orderBy("timestamp")
+      .onSnapshot(snapshot => {
+        const messages = document.getElementById("messages");
+        messages.innerHTML = "";
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const p = document.createElement("p");
+          p.textContent = `${data.user}: ${data.text}`;
+          messages.appendChild(p);
+        });
+      });
+  </script>
+</body>
+</html>
