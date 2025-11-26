@@ -5,7 +5,6 @@
   <title>シゲシゲ動画 コメント欄</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f9f9f9; }
-    #chat { margin-top: 20px; }
     #messages { border: 1px solid #ccc; padding: 10px; height: 240px; overflow-y: auto; background: #fff; }
     input, button { margin: 5px; padding: 8px; }
     #status { margin-top: 10px; font-size: 12px; color: #333; }
@@ -150,7 +149,7 @@
       snapshot.forEach(doc => {
         const data = doc.data();
         const exp = data.expireAt?.toDate().getTime();
-        if (exp > now) {
+        if (exp > now) { // 期限内なら必ず表示
           const p = document.createElement("p");
           p.textContent = `${data.user}: ${data.text}`;
           messagesEl.appendChild(p);
