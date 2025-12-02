@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ShigeX コメント＆マイページ（タグ全体色版）</title>
+  <title>ShigeX コメント＆マイページ（タグ全体色＋修正）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -228,8 +228,8 @@
     let activePollId = null;
     let pollInterval = null;
 
-    // タグ状態
-    let selectedTag = null; // "#xxx" 形式
+    // タグ状態（重複宣言を避けてここに1回だけ）
+    let selectedTag = null; // "#xxx"
     let allTagsCount = {};  // { "#xxx": count }
 
     function setStatus(msg, type="info") {
@@ -303,7 +303,7 @@
       } catch (err) { setStatus("ログアウトエラー: " + err.message, "error"); }
     }
 
-    // タグ抽出とカラー
+    /* ===== タグ機能 ===== */
     const TAG_PALETTE = [
       "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c",
       "#3498db", "#9b59b6", "#34495e", "#16a085", "#8e44ad",
@@ -336,7 +336,7 @@
         const data = snap.data();
         const username = data?.username || user.email;
         const now = Date.now();
-        const tags = extractTagsFromText(comment); // ["#感想", "#質問"] など
+        const tags = extractTagsFromText(comment);
 
         await addDoc(collection(db, "comments"), {
           text: comment, user: username, tags, timestamp: Timestamp.now(),
@@ -347,10 +347,9 @@
       } catch (err) { setStatus("コメント送信エラー: " + err.message, "error"); }
     }
 
-    // コメント購読と表示（タグフィルタ対応）
+    // コメント購読＋表示
     const commentsQuery = query(collection(db, "comments"), orderBy("timestamp", "asc"));
-    let latestComments = []; // キャッシュ
-    let selectedTag = null;  // 既に宣言ありだが再定義しない（上で定義済み）
+    let latestComments = [];
 
     onSnapshot(commentsQuery, (snapshot) => {
       latestComments = [];
@@ -376,11 +375,13 @@
 
       list.forEach(d => {
         const item = document.createElement("div"); item.className = "comment";
+
+        // 枠全体色：最初のタグ色
         const primaryTag = (d.tags && d.tags.length) ? d.tags[0] : null;
         if (primaryTag) {
           const base = colorForTag(primaryTag);
-          item.style.background = rgbaFromHex(base, 0.12);          // 背景をタグ色の薄いトーンに
-          item.style.border = `1px solid ${rgbaFromHex(base, 0.45)}`; // 枠線もタグ色
+          item.style.background = rgbaFromHex(base, 0.12);
+          item.style.border = `1px solid ${rgbaFromHex(base, 0.45)}`;
         }
 
         const avatar = document.createElement("div"); avatar.className = "avatar";
@@ -391,7 +392,7 @@
         const timeEl = document.createElement("span"); timeEl.textContent = d.timestamp?.toDate ? new Date(d.timestamp.toDate()).toLocaleString() : "";
         meta.appendChild(userEl); meta.appendChild(timeEl);
 
-        // タグライン（クリックでフィルタ）
+        // タグライン
         const tagsLine = document.createElement("div"); tagsLine.className = "tags-line";
         (d.tags || []).forEach(tag => {
           const chip = document.createElement("span");
@@ -481,27 +482,6 @@
       selectedTag = input ? normTag(input) : null;
       renderTagChips();
       renderComments();
-    }
-
-    // Username
-    async function changeUsername() {
-      const user = auth.currentUser;
-      if (!user) { setStatus("ログインしてください", "error"); return; }
-      const newName = document.getElementById("newUsername").value.trim();
-      if (!newName) { setStatus("新しいユーザー名を入力してください", "error"); return; }
-      try {
-        await setDoc(doc(db, "users", user.uid), { username: newName }, { merge: true });
-        currentUsernameEl.textContent = "現在のユーザー名: " + newName;
-        setStatus("ユーザー名を変更しました", "info");
-      } catch (err) { setStatus("ユーザー名変更エラー: " + err.message, "error"); }
-    }
-    async function loadUsername() {
-      const user = auth.currentUser; if (!user) return;
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        const data = snap.data();
-        currentUsernameEl.textContent = data?.username ? "現在のユーザー名: " + data.username : "現在のユーザー名: 未設定";
-      } catch (err) { setStatus("ユーザー名読み込みエラー: " + err.message, "error"); }
     }
 
     /* ===== アンケート機能 ===== */
@@ -762,10 +742,9 @@
   </script>
 
   <!-- Notes:
-    1) firebaseConfig をあなたの値に置換してください
-    2) Authentication / Firestore を有効化してください
-    3) コメントの最初のタグ色で枠全体の背景と枠線色を変えます（同タグは同色）
-    4) タグ、タグチップ、本文内タグをクリックで絞り込みできます
+    1) 重複していた selectedTag の宣言を一箇所に統一してJSエラーを解消しました
+    2) firebaseConfig の値を必ずあなたのものに置換してください
+    3) Authentication / Firestore を有効化してください
   -->
 </body>
 </html>
