@@ -2,18 +2,22 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ShigeX コメント＆プロフィール（ユーザー名変更版）</title>
+  <title>ShigeX コメント＆マイページ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background: #f9f9f9; margin: 0; padding: 20px; }
+    body { font-family: system-ui, Arial; background: #f9f9f9; margin: 0; padding: 20px; }
     h1 { margin: 0 0 12px; }
-    .row { margin: 10px 0; }
     input, button { padding: 8px; margin: 5px; }
     #messages { border: 1px solid #ccc; background: #fff; padding: 10px; height: 240px; overflow-y: auto; }
     #status { font-size: 12px; margin-top: 8px; }
     .info { color: #0057d9; }
     .error { color: #b00020; }
-    #profile { margin-top: 20px; }
+    /* ポップアップ共通 */
+    .popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+             background: #fff; border: 1px solid #ccc; padding: 20px; z-index: 1000; width: 300px; }
+    .popup h3 { margin-top: 0; }
+    .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+               background: rgba(0,0,0,0.5); z-index: 999; }
   </style>
 </head>
 <body>
@@ -22,34 +26,45 @@
   <!-- ステータス -->
   <div id="status" class="info">未ログイン</div>
 
-  <!-- 認証フォーム -->
-  <div class="row">
-    <input id="email" type="email" placeholder="メールアドレス" />
-    <input id="password" type="password" placeholder="パスワード" />
-    <button onclick="signup()">新規登録</button>
-    <button onclick="login()">ログイン</button>
-    <button onclick="logout()">ログアウト</button>
-    <button onclick="loginWithGoogle()">Googleでログイン</button>
-  </div>
-
   <!-- コメント欄 -->
-  <div class="row" id="chat">
+  <div id="chat">
     <div id="messages"></div>
     <input id="comment" type="text" placeholder="コメントを入力..." />
     <button onclick="sendComment()">送信</button>
   </div>
 
-  <!-- ユーザー名変更 -->
-  <div id="profile">
-    <h3>ユーザー名変更 (ShigeX ID)</h3>
-    <input type="text" id="newUsername" placeholder="新しいユーザー名" />
-    <button onclick="changeUsername()">変更</button>
-    <div class="row">
-      <span id="currentUsername">現在のユーザー名: 未設定</span>
-    </div>
+  <!-- ログインボタン／マイページボタン -->
+  <div id="authButtons">
+    <button onclick="openLoginPopup()">ログイン / 新規登録</button>
+  </div>
+  <div id="mypageButtons" style="display:none;">
+    <button onclick="openMypagePopup()">マイページ</button>
   </div>
 
-  <!-- アプリスクリプト -->
+  <!-- ログイン／新規登録ポップアップ -->
+  <div class="overlay" id="loginOverlay"></div>
+  <div class="popup" id="loginPopup">
+    <h3>ログイン / 新規登録</h3>
+    <input id="email" type="email" placeholder="メールアドレス" />
+    <input id="password" type="password" placeholder="パスワード" />
+    <button onclick="signup()">新規登録</button>
+    <button onclick="login()">ログイン</button>
+    <button onclick="loginWithGoogle()">Googleでログイン</button>
+    <button onclick="closeLoginPopup()">閉じる</button>
+  </div>
+
+  <!-- マイページポップアップ -->
+  <div class="overlay" id="mypageOverlay"></div>
+  <div class="popup" id="mypagePopup">
+    <h3>マイページ</h3>
+    <div id="currentUsername">現在のユーザー名: 未設定</div>
+    <input type="text" id="newUsername" placeholder="新しいユーザー名" />
+    <button onclick="changeUsername()">ユーザー名変更</button>
+    <button onclick="logout()">ログアウト</button>
+    <button onclick="closeMypagePopup()">閉じる</button>
+  </div>
+
+  <!-- Firebase SDK v9 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import {
@@ -76,23 +91,45 @@
     const messagesEl = document.getElementById("messages");
     const currentUsernameEl = document.getElementById("currentUsername");
 
-    function setStatus(msg, type = "info") {
+    function setStatus(msg, type="info") {
       statusEl.textContent = msg;
       statusEl.className = type;
     }
 
-    // 認証状態監視
+    // ===== ポップアップ操作 =====
+    function openLoginPopup() {
+      document.getElementById("loginOverlay").style.display = "block";
+      document.getElementById("loginPopup").style.display = "block";
+    }
+    function closeLoginPopup() {
+      document.getElementById("loginOverlay").style.display = "none";
+      document.getElementById("loginPopup").style.display = "none";
+    }
+    function openMypagePopup() {
+      document.getElementById("mypageOverlay").style.display = "block";
+      document.getElementById("mypagePopup").style.display = "block";
+    }
+    function closeMypagePopup() {
+      document.getElementById("mypageOverlay").style.display = "none";
+      document.getElementById("mypagePopup").style.display = "none";
+    }
+
+    // ===== 認証状態監視 =====
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
+        document.getElementById("authButtons").style.display = "none";
+        document.getElementById("mypageButtons").style.display = "block";
         await loadUsername();
       } else {
         setStatus("未ログイン", "info");
+        document.getElementById("authButtons").style.display = "block";
+        document.getElementById("mypageButtons").style.display = "none";
         currentUsernameEl.textContent = "現在のユーザー名: 未設定";
       }
     });
 
-    // 新規登録
+    // ===== 認証系 =====
     async function signup() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -101,38 +138,27 @@
         await setDoc(doc(db, "users", cred.user.uid), {
           email: cred.user.email,
           createdAt: new Date(),
-          username: "新規ユーザー",
-          points: 0
+          username: "新規ユーザー"
         });
         setStatus("登録成功: " + cred.user.email, "info");
+        closeLoginPopup();
       } catch (err) {
         setStatus("登録エラー: " + err.message, "error");
       }
     }
 
-    // ログイン
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
       try {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         setStatus("ログイン成功: " + cred.user.email, "info");
+        closeLoginPopup();
       } catch (err) {
         setStatus("ログインエラー: " + err.message, "error");
       }
     }
 
-    // ログアウト
-    async function logout() {
-      try {
-        await signOut(auth);
-        setStatus("ログアウトしました", "info");
-      } catch (err) {
-        setStatus("ログアウトエラー: " + err.message, "error");
-      }
-    }
-
-    // Googleログイン
     async function loginWithGoogle() {
       const provider = new GoogleAuthProvider();
       try {
@@ -140,71 +166,28 @@
         await setDoc(doc(db, "users", result.user.uid), {
           email: result.user.email,
           createdAt: new Date(),
-          username: "Googleユーザー",
-          points: 0
+          username: "Googleユーザー"
         }, { merge: true });
         setStatus("Googleログイン成功: " + result.user.email, "info");
+        closeLoginPopup();
       } catch (err) {
         setStatus("Googleログインエラー: " + err.message, "error");
       }
     }
 
-    // コメント送信
+    async function logout() {
+      try {
+        await signOut(auth);
+        setStatus("ログアウトしました", "info");
+        closeMypagePopup();
+      } catch (err) {
+        setStatus("ログアウトエラー: " + err.message, "error");
+      }
+    }
+
+    // ===== コメント送信 =====
     async function sendComment() {
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
       if (!user) { setStatus("ログインしてください", "error"); return; }
-      if (!comment) { setStatus("コメントを入力してください", "error"); return; }
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        const data = snap.data();
-        const username = data?.username || user.email;
-        const now = Date.now();
-        await addDoc(collection(db, "comments"), {
-          text: comment,
-          user: username,
-          timestamp: Timestamp.now(),
-          expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000))
-        });
-        document.getElementById("comment").value = "";
-        setStatus("コメント送信成功", "info");
-      } catch (err) {
-        setStatus("コメント送信エラー: " + err.message, "error");
-      }
-    }
-
-    // コメントリアルタイム表示
-    const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
-    onSnapshot(q, (snapshot) => {
-      messagesEl.innerHTML = "";
-      const now = Date.now();
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const exp = data.expireAt?.toDate().getTime();
-        if (!exp || exp > now) {
-          const p = document.createElement("p");
-          p.textContent = `${data.user}: ${data.text}`;
-          messagesEl.appendChild(p);
-        }
-      });
-    });
-
-    // ユーザー名変更
-    async function changeUsername() {
-      const user = auth.currentUser;
-      if (!user) { setStatus("ログインしてください", "error"); return; }
-      const newName = document.getElementById("newUsername").value.trim();
-      if (!newName) { setStatus("新しいユーザー名を入力してください", "error"); return; }
-      try {
-        await setDoc(doc(db, "users", user.uid), {
-          username: newName
-        }, { merge: true });
-        currentUsernameEl.textContent = "現在のユーザー名: " + newName;
-        setStatus("ユーザー名を変更しました", "info");
-      } catch (err) {
-        setStatus("ユーザー名変更エラー: " + err.message, "error");
-      }
-    }
-
-    // Firestoreからユーザー名読み込み
-    async function
+      if (!comment) { setStatus("コメントを入力してください", "error");
