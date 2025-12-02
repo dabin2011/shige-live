@@ -12,12 +12,15 @@
     #status { font-size: 12px; margin-top: 8px; }
     .info { color: #0057d9; }
     .error { color: #b00020; }
+
     /* ポップアップ共通 */
     .popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-             background: #fff; border: 1px solid #ccc; padding: 20px; z-index: 1000; width: 300px; }
+             background: #fff; border: 1px solid #ccc; padding: 20px; z-index: 1000; width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
     .popup h3 { margin-top: 0; }
     .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                background: rgba(0,0,0,0.5); z-index: 999; }
+    .popup .row { display: flex; flex-direction: column; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -45,12 +48,16 @@
   <div class="overlay" id="loginOverlay"></div>
   <div class="popup" id="loginPopup">
     <h3>ログイン / 新規登録</h3>
-    <input id="email" type="email" placeholder="メールアドレス" />
-    <input id="password" type="password" placeholder="パスワード" />
-    <button onclick="signup()">新規登録</button>
-    <button onclick="login()">ログイン</button>
-    <button onclick="loginWithGoogle()">Googleでログイン</button>
-    <button onclick="closeLoginPopup()">閉じる</button>
+    <div class="row">
+      <input id="email" type="email" placeholder="メールアドレス" />
+      <input id="password" type="password" placeholder="パスワード" />
+    </div>
+    <div class="actions">
+      <button onclick="signup()">新規登録</button>
+      <button onclick="login()">ログイン</button>
+      <button onclick="loginWithGoogle()">Googleでログイン</button>
+      <button onclick="closeLoginPopup()">閉じる</button>
+    </div>
   </div>
 
   <!-- マイページポップアップ -->
@@ -58,10 +65,14 @@
   <div class="popup" id="mypagePopup">
     <h3>マイページ</h3>
     <div id="currentUsername">現在のユーザー名: 未設定</div>
-    <input type="text" id="newUsername" placeholder="新しいユーザー名" />
-    <button onclick="changeUsername()">ユーザー名変更</button>
-    <button onclick="logout()">ログアウト</button>
-    <button onclick="closeMypagePopup()">閉じる</button>
+    <div class="row" style="margin-top:8px;">
+      <input type="text" id="newUsername" placeholder="新しいユーザー名" />
+    </div>
+    <div class="actions">
+      <button onclick="changeUsername()">ユーザー名変更</button>
+      <button onclick="logout()">ログアウト</button>
+      <button onclick="closeMypagePopup()">閉じる</button>
+    </div>
   </div>
 
   <!-- Firebase SDK v9 -->
@@ -96,7 +107,7 @@
       statusEl.className = type;
     }
 
-    // ===== ポップアップ操作 =====
+    // ポップアップ操作
     function openLoginPopup() {
       document.getElementById("loginOverlay").style.display = "block";
       document.getElementById("loginPopup").style.display = "block";
@@ -114,7 +125,7 @@
       document.getElementById("mypagePopup").style.display = "none";
     }
 
-    // ===== 認証状態監視 =====
+    // 認証状態監視
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
@@ -129,17 +140,18 @@
       }
     });
 
-    // ===== 認証系 =====
+    // 新規登録
     async function signup() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
+      if (!email || !password) { setStatus("メールとパスワードを入力してください", "error"); return; }
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await setDoc(doc(db, "users", cred.user.uid), {
           email: cred.user.email,
           createdAt: new Date(),
           username: "新規ユーザー"
-        });
+        }, { merge: true });
         setStatus("登録成功: " + cred.user.email, "info");
         closeLoginPopup();
       } catch (err) {
@@ -147,9 +159,11 @@
       }
     }
 
+    // ログイン
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
+      if (!email || !password) { setStatus("メールとパスワードを入力してください", "error"); return; }
       try {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         setStatus("ログイン成功: " + cred.user.email, "info");
@@ -159,6 +173,7 @@
       }
     }
 
+    // Googleログイン
     async function loginWithGoogle() {
       const provider = new GoogleAuthProvider();
       try {
@@ -175,6 +190,7 @@
       }
     }
 
+    // ログアウト
     async function logout() {
       try {
         await signOut(auth);
@@ -185,9 +201,97 @@
       }
     }
 
-    // ===== コメント送信 =====
+    // コメント送信
     async function sendComment() {
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
       if (!user) { setStatus("ログインしてください", "error"); return; }
-      if (!comment) { setStatus("コメントを入力してください", "error");
+      if (!comment) { setStatus("コメントを入力してください", "error"); return; }
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.data();
+        const username = data?.username || user.email;
+        const now = Date.now();
+        await addDoc(collection(db, "comments"), {
+          text: comment,
+          user: username,
+          timestamp: Timestamp.now(),
+          expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000)) // 4時間後
+        });
+        document.getElementById("comment").value = "";
+        setStatus("コメント送信成功", "info");
+      } catch (err) {
+        setStatus("コメント送信エラー: " + err.message, "error");
+      }
+    }
+
+    // コメントリアルタイム表示（期限切れ非表示）
+    const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      messagesEl.innerHTML = "";
+      const now = Date.now();
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const exp = data.expireAt?.toDate().getTime();
+        if (!exp || exp > now) {
+          const p = document.createElement("p");
+          p.textContent = `${data.user}: ${data.text}`;
+          messagesEl.appendChild(p);
+        }
+      });
+    });
+
+    // ユーザー名変更
+    async function changeUsername() {
+      const user = auth.currentUser;
+      if (!user) { setStatus("ログインしてください", "error"); return; }
+      const newName = document.getElementById("newUsername").value.trim();
+      if (!newName) { setStatus("新しいユーザー名を入力してください", "error"); return; }
+      try {
+        await setDoc(doc(db, "users", user.uid), { username: newName }, { merge: true });
+        currentUsernameEl.textContent = "現在のユーザー名: " + newName;
+        setStatus("ユーザー名を変更しました", "info");
+      } catch (err) {
+        setStatus("ユーザー名変更エラー: " + err.message, "error");
+      }
+    }
+
+    // Firestoreからユーザー名読み込み
+    async function loadUsername() {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.data();
+        if (data && data.username) {
+          currentUsernameEl.textContent = "現在のユーザー名: " + data.username;
+        } else {
+          currentUsernameEl.textContent = "現在のユーザー名: 未設定";
+        }
+      } catch (err) {
+        setStatus("ユーザー名読み込みエラー: " + err.message, "error");
+      }
+    }
+
+    // HTMLから呼べるようにグローバル公開（重要）
+    window.openLoginPopup = openLoginPopup;
+    window.closeLoginPopup = closeLoginPopup;
+    window.openMypagePopup = openMypagePopup;
+    window.closeMypagePopup = closeMypagePopup;
+
+    window.signup = signup;
+    window.login = login;
+    window.loginWithGoogle = loginWithGoogle;
+    window.logout = logout;
+
+    window.sendComment = sendComment;
+    window.changeUsername = changeUsername;
+  </script>
+
+  <!-- メモ：
+    1) firebaseConfig をあなたの値に置換
+    2) Firebase Consoleで Authentication と Firestore を有効化
+    3) Googleログインを使う場合、Sign-in methodでGoogleを有効化
+  -->
+</body>
+</html>
