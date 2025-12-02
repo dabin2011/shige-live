@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ShigeX コメント＆マイページ（タグ機能付き）</title>
+  <title>ShigeX コメント＆マイページ（タグ全体色版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -33,24 +33,6 @@
     .info { color: var(--primary); }
     .error { color: var(--error); }
 
-    /* タグ検索 */
-    .tag-search {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .tag-chips {
-      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
-    }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      border-radius: 9999px; padding: 6px 10px; font-size: 13px;
-      color: #fff; cursor: pointer; border: 1px solid rgba(0,0,0,0.08);
-    }
-    .chip .count { font-size: 11px; opacity: 0.9; }
-
     /* アンケート枠（コメントの上） */
     #pollArea {
       display: none;
@@ -67,13 +49,20 @@
     .poll-option-btn.disabled { opacity: 0.6; cursor: not-allowed; }
     #pollChart { width: 100%; height: 180px; display: none; margin-top: 10px; }
 
+    /* タグ検索 */
+    .tag-search { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 6px 10px; font-size: 13px; color: #fff; cursor: pointer; border: 1px solid rgba(0,0,0,0.08); }
+    .chip .count { font-size: 11px; opacity: 0.9; }
+
     /* コメント一覧 */
     #messages {
       border: 1px solid var(--border); background: var(--card); padding: 12px; height: 340px;
       overflow-y: auto; border-radius: 12px;
     }
     .comment {
-      display: flex; gap: 10px; align-items: flex-start; padding: 12px 8px; border-bottom: 1px dashed var(--divider);
+      display: flex; gap: 10px; align-items: flex-start; padding: 12px 10px; border-bottom: 1px dashed var(--divider);
+      border-radius: 10px; /* 個々の枠も角丸 */
     }
     .comment:last-child { border-bottom: none; }
     .avatar { width: 28px; height: 28px; border-radius: 50%; background: #e9eef5; flex: 0 0 28px; }
@@ -154,7 +143,7 @@
     <div class="row">
       <input id="email" type="email" placeholder="メールアドレス" />
       <input id="password" type="password" placeholder="パスワード" />
-      <div class="hint">コメントで #タグ を付けると色付きで表示され、検索できます。</div>
+      <div class="hint">コメントに #タグ を付けると、枠全体がタグ色に変わります。タグで検索もできます。</div>
     </div>
     <div class="actions">
       <button class="primary" onclick="signup()">新規登録</button>
@@ -320,29 +309,20 @@
       "#3498db", "#9b59b6", "#34495e", "#16a085", "#8e44ad",
       "#d35400", "#c0392b", "#7f8c8d", "#27ae60", "#2980b9"
     ];
-    function normTag(raw) {
-      // 先頭に#がなければ付与し、小文字化
-      if (!raw) return null;
-      const t = raw.startsWith("#") ? raw : "#" + raw;
-      return t.toLowerCase();
-    }
+    function normTag(raw) { if (!raw) return null; const t = raw.startsWith("#") ? raw : "#" + raw; return t.toLowerCase(); }
     function extractTagsFromText(text) {
-      const re = /#([^\s#]+)/g;
-      const set = new Set();
-      let m;
-      while ((m = re.exec(text)) !== null) {
-        set.add(normTag(m[0]));
-      }
+      const re = /#([^\s#]+)/g; const set = new Set(); let m;
+      while ((m = re.exec(text)) !== null) set.add(normTag(m[0]));
       return Array.from(set);
     }
-    function hashCode(str) {
-      let h = 0;
-      for (let i=0;i<str.length;i++) { h = ((h<<5)-h) + str.charCodeAt(i); h |= 0; }
-      return Math.abs(h);
-    }
-    function colorForTag(tag) {
-      const idx = hashCode(tag) % TAG_PALETTE.length;
-      return TAG_PALETTE[idx];
+    function hashCode(str) { let h=0; for (let i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0; } return Math.abs(h); }
+    function colorForTag(tag) { const idx = hashCode(tag) % TAG_PALETTE.length; return TAG_PALETTE[idx]; }
+    function rgbaFromHex(hex, alpha) {
+      const v = hex.replace('#','');
+      const r = parseInt(v.substring(0,2),16);
+      const g = parseInt(v.substring(2,4),16);
+      const b = parseInt(v.substring(4,6),16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     // コメント送信（タグ付き）
@@ -369,7 +349,8 @@
 
     // コメント購読と表示（タグフィルタ対応）
     const commentsQuery = query(collection(db, "comments"), orderBy("timestamp", "asc"));
-    let latestComments = []; // キャッシュ（フィルタ切替に使う）
+    let latestComments = []; // キャッシュ
+    let selectedTag = null;  // 既に宣言ありだが再定義しない（上で定義済み）
 
     onSnapshot(commentsQuery, (snapshot) => {
       latestComments = [];
@@ -381,10 +362,7 @@
         const exp = d.expireAt?.toDate().getTime();
         if (!exp || exp > now) {
           latestComments.push(d);
-          // タグ集計
-          (d.tags || []).forEach(tag => {
-            allTagsCount[tag] = (allTagsCount[tag] || 0) + 1;
-          });
+          (d.tags || []).forEach(tag => { allTagsCount[tag] = (allTagsCount[tag] || 0) + 1; });
         }
       });
 
@@ -398,16 +376,22 @@
 
       list.forEach(d => {
         const item = document.createElement("div"); item.className = "comment";
+        const primaryTag = (d.tags && d.tags.length) ? d.tags[0] : null;
+        if (primaryTag) {
+          const base = colorForTag(primaryTag);
+          item.style.background = rgbaFromHex(base, 0.12);          // 背景をタグ色の薄いトーンに
+          item.style.border = `1px solid ${rgbaFromHex(base, 0.45)}`; // 枠線もタグ色
+        }
+
         const avatar = document.createElement("div"); avatar.className = "avatar";
         const body = document.createElement("div"); body.className = "comment-body";
 
-        // メタ
         const meta = document.createElement("div"); meta.className = "comment-meta";
         const userEl = document.createElement("span"); userEl.className = "comment-user"; userEl.textContent = d.user;
         const timeEl = document.createElement("span"); timeEl.textContent = d.timestamp?.toDate ? new Date(d.timestamp.toDate()).toLocaleString() : "";
         meta.appendChild(userEl); meta.appendChild(timeEl);
 
-        // タグライン
+        // タグライン（クリックでフィルタ）
         const tagsLine = document.createElement("div"); tagsLine.className = "tags-line";
         (d.tags || []).forEach(tag => {
           const chip = document.createElement("span");
@@ -421,7 +405,6 @@
           tagsLine.appendChild(chip);
         });
 
-        // テキスト（タグを色付きで埋め込み表示）
         const text = document.createElement("div"); text.className = "comment-text";
         text.appendChild(renderTextWithColoredTags(d.text));
 
@@ -449,10 +432,7 @@
       const re = /#([^\s#]+)/g;
       let lastIndex = 0, m;
       while ((m = re.exec(str)) !== null) {
-        // 通常テキスト部分
-        if (m.index > lastIndex) {
-          frag.appendChild(document.createTextNode(str.slice(lastIndex, m.index)));
-        }
+        if (m.index > lastIndex) frag.appendChild(document.createTextNode(str.slice(lastIndex, m.index)));
         const tag = normTag(m[0]);
         const span = document.createElement("span");
         const color = colorForTag(tag);
@@ -466,19 +446,14 @@
         span.title = "このタグで絞り込む";
         span.onclick = () => { selectedTag = tag; tagSearchInput.value = tag; renderTagChips(); renderComments(); };
         frag.appendChild(span);
-
         lastIndex = re.lastIndex;
       }
-      // 残りのテキスト
-      if (lastIndex < str.length) {
-        frag.appendChild(document.createTextNode(str.slice(lastIndex)));
-      }
+      if (lastIndex < str.length) frag.appendChild(document.createTextNode(str.slice(lastIndex)));
       return frag;
     }
 
     function renderTagChips() {
       tagChipsEl.innerHTML = "";
-      // 選択解除用チップ
       if (selectedTag) {
         const clearChip = document.createElement("span");
         clearChip.className = "chip";
@@ -488,7 +463,6 @@
         clearChip.onclick = () => { selectedTag = null; tagSearchInput.value = ""; renderTagChips(); renderComments(); };
         tagChipsEl.appendChild(clearChip);
       }
-      // タグの人気順で表示
       const entries = Object.entries(allTagsCount).sort((a,b) => b[1]-a[1]).slice(0, 20);
       entries.forEach(([tag, count]) => {
         const chip = document.createElement("span");
@@ -530,19 +504,12 @@
       } catch (err) { setStatus("ユーザー名読み込みエラー: " + err.message, "error"); }
     }
 
-    /* ===== アンケート機能（既存） ===== */
+    /* ===== アンケート機能 ===== */
 
     function nowMs() { return Date.now(); }
 
-    // ローカル投票管理
-    function getMyVote(pollId) {
-      try { const map = JSON.parse(localStorage.getItem("myPollVotes") || "{}"); return map[pollId]; }
-      catch { return undefined; }
-    }
-    function setMyVote(pollId, optionIndex) {
-      try { const map = JSON.parse(localStorage.getItem("myPollVotes") || "{}"); map[pollId] = optionIndex; localStorage.setItem("myPollVotes", JSON.stringify(map)); }
-      catch { /* ignore */ }
-    }
+    function getMyVote(pollId) { try { const map = JSON.parse(localStorage.getItem("myPollVotes") || "{}"); return map[pollId]; } catch { return undefined; } }
+    function setMyVote(pollId, optionIndex) { try { const map = JSON.parse(localStorage.getItem("myPollVotes") || "{}"); map[pollId] = optionIndex; localStorage.setItem("myPollVotes", JSON.stringify(map)); } catch {} }
 
     async function createPoll() {
       const qText = document.getElementById("pollQuestionInput").value.trim();
@@ -797,8 +764,8 @@
   <!-- Notes:
     1) firebaseConfig をあなたの値に置換してください
     2) Authentication / Firestore を有効化してください
-    3) コメントの tags フィールドでハッシュタグを保存し、同タグは同色で表示します
-    4) タグチップや本文内のタグをクリックすると、そのタグで絞り込みできます
+    3) コメントの最初のタグ色で枠全体の背景と枠線色を変えます（同タグは同色）
+    4) タグ、タグチップ、本文内タグをクリックで絞り込みできます
   -->
 </body>
 </html>
