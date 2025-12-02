@@ -2,94 +2,231 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ShigeX コメント＆マイページ（丸ボタン版）</title>
+  <title>ShigeX コメント＆マイページ（改善版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, Arial; background: #f9f9f9; margin: 0; padding: 20px; }
-    h1 { margin: 0 0 12px; }
-    input, button { padding: 10px 16px; margin: 5px; }
+    :root{
+      --bg:#f4f6f8;
+      --card:#ffffff;
+      --text:#2f3237;
+      --muted:#6b7280;
+      --primary:#0969da;
+      --primary-dark:#0757b2;
+      --border:#d0d7de;
+      --divider:#e5e7eb;
+      --success:#0b7a15;
+      --error:#b00020;
+    }
 
-    /* 丸ボタンスタイル */
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: 22px;
+    }
+
+    /* Inputs */
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--text);
+      box-sizing: border-box;
+    }
+
+    /* Rounded buttons */
     button {
       border-radius: 9999px;
-      border: 1px solid #d0d7de;
-      background: #ffffff;
+      border: 1px solid var(--border);
+      background: #fff;
       color: #24292f;
+      padding: 10px 16px;
+      font-size: 14px;
       cursor: pointer;
-      transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+      transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
     }
     button:hover { background: #f6f8fa; }
     button:active { transform: translateY(1px); }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    button.primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    button.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
 
-    #messages { border: 1px solid #ccc; background: #fff; padding: 10px; height: 240px; overflow-y: auto; }
-    #status { font-size: 12px; margin-top: 8px; }
-    .info { color: #0057d9; }
-    .error { color: #b00020; }
+    /* Status */
+    #status {
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .info { color: var(--primary); }
+    .error { color: var(--error); }
 
-    /* ポップアップ共通 */
-    .popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-             background: #fff; border: 1px solid #ccc; padding: 20px; z-index: 1000; width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
-    .popup h3 { margin-top: 0; }
-    .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-               background: rgba(0,0,0,0.5); z-index: 999; }
-    .popup .row { display: flex; flex-direction: column; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    /* Comment area */
+    #messages {
+      border: 1px solid var(--border);
+      background: var(--card);
+      padding: 12px;
+      height: 320px;
+      overflow-y: auto;
+      border-radius: 12px;
+    }
+
+    .comment {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 8px;
+      border-bottom: 1px dashed var(--divider);
+    }
+    .comment:last-child { border-bottom: none; }
+    .avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #e9eef5;
+      flex: 0 0 28px;
+    }
+    .comment-body { flex: 1; }
+    .comment-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .comment-user {
+      font-weight: 600;
+      color: var(--primary);
+      margin-right: 6px;
+    }
+    .comment-text {
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 10px;
+      align-items: center;
+    }
+
+    /* Top actions */
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0 16px;
+    }
+
+    /* Popups */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 999;
+      backdrop-filter: blur(1px);
+    }
+    .popup {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 360px;
+      max-width: calc(100% - 40px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+      z-index: 1000;
+      padding: 18px;
+    }
+    .popup h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+    .popup .row { display: grid; gap: 10px; }
+    .popup .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .section { margin-top: 18px; }
   </style>
 </head>
 <body>
-  <h1>🎥 ShigeX コメント欄</h1>
+  <div class="container">
+    <h1>🎥 ShigeX コメント欄</h1>
 
-  <!-- ステータス -->
-  <div id="status" class="info">未ログイン</div>
+    <!-- Status -->
+    <div id="status" class="info">未ログイン</div>
 
-  <!-- コメント欄 -->
-  <div id="chat">
+    <!-- Top actions -->
+    <div class="top-actions">
+      <div id="authButtons">
+        <button class="primary" onclick="openLoginPopup()">ログイン / 新規登録</button>
+      </div>
+      <div id="mypageButtons" style="display:none;">
+        <button class="primary" onclick="openMypagePopup()">マイページ</button>
+      </div>
+    </div>
+
+    <!-- Messages -->
     <div id="messages"></div>
-    <input id="comment" type="text" placeholder="コメントを入力..." />
-    <button onclick="sendComment()">送信</button>
+
+    <!-- Composer -->
+    <div class="composer">
+      <input id="comment" type="text" placeholder="コメントを入力..." />
+      <button class="primary" onclick="sendComment()">送信</button>
+    </div>
   </div>
 
-  <!-- ログインボタン／マイページボタン -->
-  <div id="authButtons">
-    <button onclick="openLoginPopup()">ログイン / 新規登録</button>
-  </div>
-  <div id="mypageButtons" style="display:none;">
-    <button onclick="openMypagePopup()">マイページ</button>
-  </div>
-
-  <!-- ログイン／新規登録ポップアップ -->
+  <!-- Login / Register Popup -->
   <div class="overlay" id="loginOverlay"></div>
   <div class="popup" id="loginPopup">
     <h3>ログイン / 新規登録</h3>
     <div class="row">
       <input id="email" type="email" placeholder="メールアドレス" />
       <input id="password" type="password" placeholder="パスワード" />
+      <div class="hint">メールとパスワードでログイン、またはGoogleでログインできます。</div>
     </div>
     <div class="actions">
-      <button onclick="signup()">新規登録</button>
-      <button onclick="login()">ログイン</button>
+      <button class="primary" onclick="signup()">新規登録</button>
+      <button class="primary" onclick="login()">ログイン</button>
       <button onclick="loginWithGoogle()">Googleでログイン</button>
       <button onclick="closeLoginPopup()">閉じる</button>
     </div>
   </div>
 
-  <!-- マイページポップアップ -->
+  <!-- My Page Popup -->
   <div class="overlay" id="mypageOverlay"></div>
   <div class="popup" id="mypagePopup">
     <h3>マイページ</h3>
     <div id="currentUsername">現在のユーザー名: 未設定</div>
-    <div class="row" style="margin-top:8px;">
-      <input type="text" id="newUsername" placeholder="新しいユーザー名" />
-    </div>
-    <div class="actions">
-      <button onclick="changeUsername()">ユーザー名変更</button>
-      <button onclick="logout()">ログアウト</button>
-      <button onclick="closeMypagePopup()">閉じる</button>
+
+    <div class="section">
+      <div class="row">
+        <input type="text" id="newUsername" placeholder="新しいユーザー名" />
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="changeUsername()">ユーザー名変更</button>
+        <button onclick="logout()">ログアウト</button>
+        <button onclick="closeMypagePopup()">閉じる</button>
+      </div>
     </div>
   </div>
 
-  <!-- Firebase SDK v9 -->
+  <!-- App Script -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import {
@@ -101,7 +238,6 @@
       doc, setDoc, getDoc
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-    // あなたのFirebase設定に置き換え
     // Firebase設定（Firebase Consoleからコピー）
     const firebaseConfig = {
       apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
@@ -122,7 +258,7 @@
       statusEl.className = type;
     }
 
-    // ポップアップ操作
+    // Popup controls
     function openLoginPopup() {
       document.getElementById("loginOverlay").style.display = "block";
       document.getElementById("loginPopup").style.display = "block";
@@ -140,7 +276,7 @@
       document.getElementById("mypagePopup").style.display = "none";
     }
 
-    // 認証状態監視
+    // Auth state
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
@@ -155,7 +291,7 @@
       }
     });
 
-    // 新規登録
+    // Sign up
     async function signup() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -174,7 +310,7 @@
       }
     }
 
-    // ログイン
+    // Login
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -188,7 +324,7 @@
       }
     }
 
-    // Googleログイン
+    // Google Login
     async function loginWithGoogle() {
       const provider = new GoogleAuthProvider();
       try {
@@ -205,7 +341,7 @@
       }
     }
 
-    // ログアウト
+    // Logout
     async function logout() {
       try {
         await signOut(auth);
@@ -216,7 +352,7 @@
       }
     }
 
-    // コメント送信
+    // Send comment
     async function sendComment() {
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
@@ -240,23 +376,53 @@
       }
     }
 
-    // コメントリアルタイム表示（期限切れ非表示）
+    // Live comments
     const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       messagesEl.innerHTML = "";
       const now = Date.now();
       snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const exp = data.expireAt?.toDate().getTime();
+        const d = docSnap.data();
+        const exp = d.expireAt?.toDate().getTime();
         if (!exp || exp > now) {
-          const p = document.createElement("p");
-          p.textContent = `${data.user}: ${data.text}`;
-          messagesEl.appendChild(p);
+          const item = document.createElement("div");
+          item.className = "comment";
+
+          const avatar = document.createElement("div");
+          avatar.className = "avatar";
+
+          const body = document.createElement("div");
+          body.className = "comment-body";
+
+          const meta = document.createElement("div");
+          meta.className = "comment-meta";
+          const userEl = document.createElement("span");
+          userEl.className = "comment-user";
+          userEl.textContent = d.user;
+          const timeEl = document.createElement("span");
+          timeEl.textContent = d.timestamp?.toDate
+            ? new Date(d.timestamp.toDate()).toLocaleString()
+            : "";
+
+          meta.appendChild(userEl);
+          meta.appendChild(timeEl);
+
+          const text = document.createElement("div");
+          text.className = "comment-text";
+          text.textContent = d.text;
+
+          body.appendChild(meta);
+          body.appendChild(text);
+
+          item.appendChild(avatar);
+          item.appendChild(body);
+
+          messagesEl.appendChild(item);
         }
       });
     });
 
-    // ユーザー名変更
+    // Change username
     async function changeUsername() {
       const user = auth.currentUser;
       if (!user) { setStatus("ログインしてください", "error"); return; }
@@ -271,7 +437,7 @@
       }
     }
 
-    // Firestoreからユーザー名読み込み
+    // Load username
     async function loadUsername() {
       const user = auth.currentUser;
       if (!user) return;
@@ -288,7 +454,7 @@
       }
     }
 
-    // HTMLから呼べるようにグローバル公開（重要）
+    // Expose to window (ensure buttons work)
     window.openLoginPopup = openLoginPopup;
     window.closeLoginPopup = closeLoginPopup;
     window.openMypagePopup = openMypagePopup;
@@ -303,10 +469,10 @@
     window.changeUsername = changeUsername;
   </script>
 
-  <!-- メモ：
-    1) firebaseConfig をあなたの値に置換
-    2) Firebase Consoleで Authentication と Firestore を有効化
-    3) Googleログインを使う場合、Authentication > Sign-in method で Google を有効化
+  <!-- Notes:
+    1) firebaseConfig をあなたの値に置換してください
+    2) Firebase Consoleで Authentication / Firestore を有効化してください
+    3) Googleログインは Authentication > Sign-in method で Google を有効化してください
   -->
 </body>
 </html>
