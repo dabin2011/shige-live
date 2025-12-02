@@ -2,12 +2,26 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ShigeX コメント＆マイページ</title>
+  <title>ShigeX コメント＆マイページ（丸ボタン版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: system-ui, Arial; background: #f9f9f9; margin: 0; padding: 20px; }
     h1 { margin: 0 0 12px; }
-    input, button { padding: 8px; margin: 5px; }
+    input, button { padding: 10px 16px; margin: 5px; }
+
+    /* 丸ボタンスタイル */
+    button {
+      border-radius: 9999px;
+      border: 1px solid #d0d7de;
+      background: #ffffff;
+      color: #24292f;
+      cursor: pointer;
+      transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+    }
+    button:hover { background: #f6f8fa; }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
     #messages { border: 1px solid #ccc; background: #fff; padding: 10px; height: 240px; overflow-y: auto; }
     #status { font-size: 12px; margin-top: 8px; }
     .info { color: #0057d9; }
@@ -87,11 +101,11 @@
       doc, setDoc, getDoc
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-    // Firebase設定（Firebase Consoleからコピー）
+    // あなたのFirebase設定に置き換え
     const firebaseConfig = {
-      apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
-      authDomain: "shige-live-b70a7.firebaseapp.com",
-      projectId: "shige-live-b70a7",
+      apiKey: "YOUR_API_KEY",
+      authDomain: "shigeshige-video.firebaseapp.com",
+      projectId: "shigeshige-video"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -291,7 +305,7 @@
   <!-- メモ：
     1) firebaseConfig をあなたの値に置換
     2) Firebase Consoleで Authentication と Firestore を有効化
-    3) Googleログインを使う場合、Sign-in methodでGoogleを有効化
+    3) Googleログインを使う場合、Authentication > Sign-in method で Google を有効化
   -->
 </body>
 </html>
