@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ShigeX コメント＆マイページ（タグ全体色＋修正）</title>
+  <title>ShigeX コメント＆マイページ（修正版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -33,10 +33,27 @@
     .info { color: var(--primary); }
     .error { color: var(--error); }
 
-    /* アンケート枠（コメントの上） */
+    /* ポップアップ表示制御（showクラスで表示） */
+    .overlay {
+      visibility: hidden; opacity: 0; transition: opacity 0.18s ease, visibility 0.18s;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; backdrop-filter: blur(1px);
+      pointer-events: none;
+    }
+    .overlay.show { visibility: visible; opacity: 1; pointer-events: auto; }
+
+    .popup {
+      visibility: hidden; opacity: 0; transform: translate(-50%, -48%) scale(0.98);
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+      position: fixed; top: 50%; left: 50%;
+      width: 420px; max-width: calc(100% - 40px); background: var(--card);
+      border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,0.18); z-index: 1000; padding: 18px;
+      pointer-events: auto;
+    }
+    .popup.show { visibility: visible; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+    /* アンケート枠 */
     #pollArea {
-      display: none;
-      border: 1px solid var(--border); background: var(--card);
+      display: none; border: 1px solid var(--border); background: var(--card);
       border-radius: 12px; padding: 16px; margin-bottom: 16px;
     }
     .poll-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -62,7 +79,7 @@
     }
     .comment {
       display: flex; gap: 10px; align-items: flex-start; padding: 12px 10px; border-bottom: 1px dashed var(--divider);
-      border-radius: 10px; /* 個々の枠も角丸 */
+      border-radius: 10px;
     }
     .comment:last-child { border-bottom: none; }
     .avatar { width: 28px; height: 28px; border-radius: 50%; background: #e9eef5; flex: 0 0 28px; }
@@ -75,29 +92,14 @@
     /* 入力欄 */
     .composer { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-top: 10px; align-items: center; }
     .top-actions { display: flex; gap: 8px; margin: 12px 0 16px; }
-
-    /* ポップアップ共通 */
-    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; backdrop-filter: blur(1px); }
-    .popup {
-      display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 420px; max-width: calc(100% - 40px); background: var(--card); border: 1px solid var(--border);
-      border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,0.18); z-index: 1000; padding: 18px;
-    }
-    .popup h3 { margin: 0 0 10px; font-size: 18px; }
-    .popup .row { display: grid; gap: 10px; }
-    .popup .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    .section { margin-top: 18px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎥 ShigeX コメント欄</h1>
+    <h1>コメント欄</h1>
 
-    <!-- ステータス -->
     <div id="status" class="info">未ログイン</div>
 
-    <!-- 上部アクション -->
     <div class="top-actions">
       <div id="authButtons">
         <button class="primary" onclick="openLoginPopup()">ログイン / 新規登録</button>
@@ -107,7 +109,6 @@
       </div>
     </div>
 
-    <!-- アンケート枠 -->
     <div id="pollArea">
       <div class="poll-header">
         <div class="poll-title" id="pollQuestion">アンケート</div>
@@ -118,17 +119,14 @@
       <canvas id="pollChart"></canvas>
     </div>
 
-    <!-- タグ検索 -->
     <div class="tag-search">
       <input id="tagSearchInput" type="text" placeholder="#タグで検索（例：#質問）" />
       <button onclick="applyTagFilter()">検索</button>
     </div>
     <div id="tagChips" class="tag-chips"></div>
 
-    <!-- コメント一覧 -->
     <div id="messages"></div>
 
-    <!-- 入力欄 -->
     <div class="composer">
       <input id="comment" type="text" placeholder="コメントを入力（例：#感想 最高でした！）" />
       <button class="primary" onclick="sendComment()">送信</button>
@@ -136,16 +134,16 @@
     </div>
   </div>
 
-  <!-- ログイン/新規登録ポップアップ -->
+  <!-- Login Popup -->
   <div class="overlay" id="loginOverlay"></div>
   <div class="popup" id="loginPopup">
-    <h3>ログイン / 新規登録</h3>
+    <h3>ShigeX ID ログイン / 新規登録</h3>
     <div class="row">
       <input id="email" type="email" placeholder="メールアドレス" />
       <input id="password" type="password" placeholder="パスワード" />
-      <div class="hint">コメントに #タグ を付けると、枠全体がタグ色に変わります。タグで検索もできます。</div>
+      <div class="hint">ShigeX IDはシゲシゲ動画などのサービスと連携させるIDです。</div>
     </div>
-    <div class="actions">
+    <div class="actions" style="margin-top:12px;">
       <button class="primary" onclick="signup()">新規登録</button>
       <button class="primary" onclick="login()">ログイン</button>
       <button onclick="loginWithGoogle()">Googleでログイン</button>
@@ -153,24 +151,22 @@
     </div>
   </div>
 
-  <!-- マイページポップアップ -->
+  <!-- MyPage Popup -->
   <div class="overlay" id="mypageOverlay"></div>
   <div class="popup" id="mypagePopup">
     <h3>マイページ</h3>
     <div id="currentUsername">現在のユーザー名: 未設定</div>
-    <div class="section">
-      <div class="row">
-        <input type="text" id="newUsername" placeholder="新しいユーザー名" />
-      </div>
-      <div class="actions">
-        <button class="primary" onclick="changeUsername()">ユーザー名変更</button>
-        <button onclick="logout()">ログアウト</button>
-        <button onclick="closeMypagePopup()">閉じる</button>
-      </div>
+    <div class="row" style="margin-top:10px;">
+      <input type="text" id="newUsername" placeholder="新しいユーザー名" />
+    </div>
+    <div class="actions" style="margin-top:12px;">
+      <button class="primary" onclick="changeUsername()">ユーザー名変更</button>
+      <button onclick="logout()">ログアウト</button>
+      <button onclick="closeMypagePopup()">閉じる</button>
     </div>
   </div>
 
-  <!-- アンケート作成ポップアップ -->
+  <!-- Poll Create Popup -->
   <div class="overlay" id="pollOverlay"></div>
   <div class="popup" id="pollPopup">
     <h3>アンケートを作成</h3>
@@ -180,15 +176,14 @@
       <input id="pollOption2" type="text" placeholder="選択肢2（例：良かった）" />
       <input id="pollOption3" type="text" placeholder="選択肢3（任意）" />
       <input id="pollOption4" type="text" placeholder="選択肢4（任意）" />
-      <div class="hint">作成すると全視聴者の画面に即時表示されます。投票30秒 → 集計10秒 → 結果30秒。</div>
+      <div class="hint">作成すると全視聴者に即時表示されます。投票30秒 → 集計10秒 → 結果30秒。</div>
     </div>
-    <div class="actions">
+    <div class="actions" style="margin-top:12px;">
       <button class="primary" onclick="createPoll()">作成して開始</button>
       <button onclick="closePollPopup()">閉じる</button>
     </div>
   </div>
 
-  <!-- App Script -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import {
@@ -217,7 +212,6 @@
     const tagChipsEl = document.getElementById("tagChips");
     const tagSearchInput = document.getElementById("tagSearchInput");
 
-    // Poll DOM
     const pollArea = document.getElementById("pollArea");
     const pollQuestion = document.getElementById("pollQuestion");
     const pollPhase = document.getElementById("pollPhase");
@@ -228,24 +222,51 @@
     let activePollId = null;
     let pollInterval = null;
 
-    // タグ状態（重複宣言を避けてここに1回だけ）
-    let selectedTag = null; // "#xxx"
-    let allTagsCount = {};  // { "#xxx": count }
+    // タグ状態
+    let selectedTag = null;
+    let allTagsCount = {};
 
     function setStatus(msg, type="info") {
       statusEl.textContent = msg;
       statusEl.className = type;
     }
 
-    // Popup controls
-    function openLoginPopup() { document.getElementById("loginOverlay").style.display = "block"; document.getElementById("loginPopup").style.display = "block"; }
-    function closeLoginPopup() { document.getElementById("loginOverlay").style.display = "none"; document.getElementById("loginPopup").style.display = "none"; }
-    function openMypagePopup() { document.getElementById("mypageOverlay").style.display = "block"; document.getElementById("mypagePopup").style.display = "block"; }
-    function closeMypagePopup() { document.getElementById("mypageOverlay").style.display = "none"; document.getElementById("mypagePopup").style.display = "none"; }
-    function openPollPopup() { document.getElementById("pollOverlay").style.display = "block"; document.getElementById("pollPopup").style.display = "block"; }
-    function closePollPopup() { document.getElementById("pollOverlay").style.display = "none"; document.getElementById("pollPopup").style.display = "none"; }
+    /* ---------- Popup controls (確実に動く実装) ---------- */
+    function openLoginPopup() {
+      document.getElementById("loginOverlay").classList.add("show");
+      document.getElementById("loginPopup").classList.add("show");
+    }
+    function closeLoginPopup() {
+      document.getElementById("loginOverlay").classList.remove("show");
+      document.getElementById("loginPopup").classList.remove("show");
+    }
+    function openMypagePopup() {
+      document.getElementById("mypageOverlay").classList.add("show");
+      document.getElementById("mypagePopup").classList.add("show");
+    }
+    function closeMypagePopup() {
+      document.getElementById("mypageOverlay").classList.remove("show");
+      document.getElementById("mypagePopup").classList.remove("show");
+    }
+    function openPollPopup() {
+      const overlay = document.getElementById("pollOverlay");
+      const popup = document.getElementById("pollPopup");
+      if (!overlay || !popup) { console.error("pollOverlay or pollPopup not found"); return; }
+      overlay.classList.add("show");
+      popup.classList.add("show");
 
-    // Auth state
+      if (!openPollPopup._escHandler) {
+        openPollPopup._escHandler = (e) => { if (e.key === "Escape") closePollPopup(); };
+        document.addEventListener("keydown", openPollPopup._escHandler);
+      }
+      overlay.onclick = (ev) => { if (ev.target === overlay) closePollPopup(); };
+    }
+    function closePollPopup() {
+      document.getElementById("pollOverlay").classList.remove("show");
+      document.getElementById("pollPopup").classList.remove("show");
+    }
+
+    /* ---------- Auth ---------- */
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
@@ -260,7 +281,6 @@
       }
     });
 
-    // Sign up / Login / Logout
     async function signup() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -274,6 +294,7 @@
         closeLoginPopup();
       } catch (err) { setStatus("登録エラー: " + err.message, "error"); }
     }
+
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -284,6 +305,7 @@
         closeLoginPopup();
       } catch (err) { setStatus("ログインエラー: " + err.message, "error"); }
     }
+
     async function loginWithGoogle() {
       const provider = new GoogleAuthProvider();
       try {
@@ -295,6 +317,7 @@
         closeLoginPopup();
       } catch (err) { setStatus("Googleログインエラー: " + err.message, "error"); }
     }
+
     async function logout() {
       try {
         await signOut(auth);
@@ -303,7 +326,7 @@
       } catch (err) { setStatus("ログアウトエラー: " + err.message, "error"); }
     }
 
-    /* ===== タグ機能 ===== */
+    /* ---------- Tags utilities ---------- */
     const TAG_PALETTE = [
       "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c",
       "#3498db", "#9b59b6", "#34495e", "#16a085", "#8e44ad",
@@ -325,7 +348,7 @@
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    // コメント送信（タグ付き）
+    /* ---------- Comments (最新を上に) ---------- */
     async function sendComment() {
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
@@ -337,7 +360,6 @@
         const username = data?.username || user.email;
         const now = Date.now();
         const tags = extractTagsFromText(comment);
-
         await addDoc(collection(db, "comments"), {
           text: comment, user: username, tags, timestamp: Timestamp.now(),
           expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000))
@@ -347,8 +369,8 @@
       } catch (err) { setStatus("コメント送信エラー: " + err.message, "error"); }
     }
 
-    // コメント購読＋表示
-    const commentsQuery = query(collection(db, "comments"), orderBy("timestamp", "asc"));
+    // ここで降順（最新が上）で取得する
+    const commentsQuery = query(collection(db, "comments"), orderBy("timestamp", "desc"));
     let latestComments = [];
 
     onSnapshot(commentsQuery, (snapshot) => {
@@ -358,8 +380,10 @@
 
       snapshot.forEach(docSnap => {
         const d = docSnap.data();
-        const exp = d.expireAt?.toDate().getTime();
-        if (!exp || exp > now) {
+        const exp = d.expireAt?.toDate?.().getTime?.() ?? (d.expireAt ? d.expireAt.toDate().getTime() : null);
+        // 上の互換処理は古いブラウザ差異を避けるため。通常は d.expireAt?.toDate().getTime()
+        const expireMs = d.expireAt && d.expireAt.toDate ? d.expireAt.toDate().getTime() : null;
+        if (!expireMs || expireMs > now) {
           latestComments.push(d);
           (d.tags || []).forEach(tag => { allTagsCount[tag] = (allTagsCount[tag] || 0) + 1; });
         }
@@ -376,7 +400,6 @@
       list.forEach(d => {
         const item = document.createElement("div"); item.className = "comment";
 
-        // 枠全体色：最初のタグ色
         const primaryTag = (d.tags && d.tags.length) ? d.tags[0] : null;
         if (primaryTag) {
           const base = colorForTag(primaryTag);
@@ -392,7 +415,6 @@
         const timeEl = document.createElement("span"); timeEl.textContent = d.timestamp?.toDate ? new Date(d.timestamp.toDate()).toLocaleString() : "";
         meta.appendChild(userEl); meta.appendChild(timeEl);
 
-        // タグライン
         const tagsLine = document.createElement("div"); tagsLine.className = "tags-line";
         (d.tags || []).forEach(tag => {
           const chip = document.createElement("span");
@@ -484,10 +506,29 @@
       renderComments();
     }
 
-    /* ===== アンケート機能 ===== */
+    /* ---------- Username ---------- */
+    async function changeUsername() {
+      const user = auth.currentUser;
+      if (!user) { setStatus("ログインしてください", "error"); return; }
+      const newName = document.getElementById("newUsername").value.trim();
+      if (!newName) { setStatus("新しいユーザー名を入力してください", "error"); return; }
+      try {
+        await setDoc(doc(db, "users", user.uid), { username: newName }, { merge: true });
+        currentUsernameEl.textContent = "現在のユーザー名: " + newName;
+        setStatus("ユーザー名を変更しました", "info");
+      } catch (err) { setStatus("ユーザー名変更エラー: " + err.message, "error"); }
+    }
+    async function loadUsername() {
+      const user = auth.currentUser; if (!user) return;
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.data();
+        currentUsernameEl.textContent = data?.username ? "現在のユーザー名: " + data.username : "現在のユーザー名: 未設定";
+      } catch (err) { setStatus("ユーザー名読み込みエラー: " + err.message, "error"); }
+    }
 
+    /* ---------- Poll feature (簡易) ---------- */
     function nowMs() { return Date.now(); }
-
     function getMyVote(pollId) { try { const map = JSON.parse(localStorage.getItem("myPollVotes") || "{}"); return map[pollId]; } catch { return undefined; } }
     function setMyVote(pollId, optionIndex) { try { const map = JSON.parse(localStorage.getItem("myPollVotes") || "{}"); map[pollId] = optionIndex; localStorage.setItem("myPollVotes", JSON.stringify(map)); } catch {} }
 
@@ -544,7 +585,6 @@
       updatePollPhaseUI(data);
       renderPollOptionsButtons(data);
     }
-
     function hidePollArea() {
       pollArea.style.display = "none";
       clearInterval(pollInterval);
@@ -703,8 +743,8 @@
       if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
       pollInterval = setInterval(async () => {
         updatePollPhaseUI(data);
-        const startMs = data.startAt?.toDate ? data.startAt.toDate().getTime() : Date.now();
-        const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+        const startMs = data.startAt?.toDate ? data.startAt.toDate().getTime() : nowMs();
+        const elapsed = Math.max(0, Math.floor((nowMs() - startMs) / 1000));
         const newPhase = elapsed < 30 ? "voting" : elapsed < 40 ? "aggregating" : elapsed < 70 ? "results" : "closed";
         if (newPhase !== data.phase) {
           try {
@@ -720,11 +760,13 @@
       }, 500);
     }
 
-    // Expose for buttons
+    /* ---------- Expose functions to window so onclick works ---------- */
     window.openLoginPopup = openLoginPopup;
     window.closeLoginPopup = closeLoginPopup;
     window.openMypagePopup = openMypagePopup;
     window.closeMypagePopup = closeMypagePopup;
+    window.openPollPopup = openPollPopup;
+    window.closePollPopup = closePollPopup;
 
     window.signup = signup;
     window.login = login;
@@ -734,17 +776,14 @@
     window.sendComment = sendComment;
     window.changeUsername = changeUsername;
 
-    window.openPollPopup = openPollPopup;
-    window.closePollPopup = closePollPopup;
     window.createPoll = createPoll;
-
     window.applyTagFilter = applyTagFilter;
   </script>
 
-  <!-- Notes:
-    1) 重複していた selectedTag の宣言を一箇所に統一してJSエラーを解消しました
-    2) firebaseConfig の値を必ずあなたのものに置換してください
-    3) Authentication / Firestore を有効化してください
+  <!-- メモ:
+    - firebaseConfig をあなたの値に置換してください
+    - Firebase Consoleで Authentication と Firestore を有効化してください
+    - ブラウザのコンソールにエラーが出ていないか確認してください
   -->
 </body>
 </html>
