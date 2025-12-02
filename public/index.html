@@ -1,30 +1,31 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>ShigeX コメント＆プロフィール</title>
+  <meta charset="UTF-8" />
+  <title>ShigeX コメント＆プロフィール（ユーザー名変更版）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 0; padding: 20px; }
-    h1 { margin-top: 0; }
-    #messages { border: 1px solid #ccc; padding: 10px; height: 240px; overflow-y: auto; background: #fff; }
-    input, button { margin: 5px; padding: 8px; }
-    #status { margin-top: 10px; font-size: 12px; color: #333; }
-    .error { color: #b00020; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background: #f9f9f9; margin: 0; padding: 20px; }
+    h1 { margin: 0 0 12px; }
+    .row { margin: 10px 0; }
+    input, button { padding: 8px; margin: 5px; }
+    #messages { border: 1px solid #ccc; background: #fff; padding: 10px; height: 240px; overflow-y: auto; }
+    #status { font-size: 12px; margin-top: 8px; }
     .info { color: #0057d9; }
+    .error { color: #b00020; }
     #profile { margin-top: 20px; }
-    img { border-radius: 6px; border: 1px solid #ddd; }
   </style>
 </head>
 <body>
   <h1>🎥 ShigeX コメント欄</h1>
 
-  <!-- ステータス表示 -->
+  <!-- ステータス -->
   <div id="status" class="info">未ログイン</div>
 
-  <!-- ログインフォーム -->
-  <div>
-    <input id="email" type="text" placeholder="メールアドレス">
-    <input id="password" type="password" placeholder="パスワード">
+  <!-- 認証フォーム -->
+  <div class="row">
+    <input id="email" type="email" placeholder="メールアドレス" />
+    <input id="password" type="password" placeholder="パスワード" />
     <button onclick="signup()">新規登録</button>
     <button onclick="login()">ログイン</button>
     <button onclick="logout()">ログアウト</button>
@@ -32,23 +33,23 @@
   </div>
 
   <!-- コメント欄 -->
-  <div id="chat">
+  <div class="row" id="chat">
     <div id="messages"></div>
-    <input id="comment" type="text" placeholder="コメントを入力...">
+    <input id="comment" type="text" placeholder="コメントを入力..." />
     <button onclick="sendComment()">送信</button>
   </div>
 
-  <!-- プロフィール画像設定 -->
+  <!-- ユーザー名変更 -->
   <div id="profile">
-    <h3>プロフィール画像 (ShigeX ID)</h3>
-    <input type="file" id="uploadImage" accept="image/*">
-    <button onclick="uploadProfileImage()">アップロード</button>
-    <div>
-      <img id="preview" src="" alt="プロフィール画像" width="120">
+    <h3>ユーザー名変更 (ShigeX ID)</h3>
+    <input type="text" id="newUsername" placeholder="新しいユーザー名" />
+    <button onclick="changeUsername()">変更</button>
+    <div class="row">
+      <span id="currentUsername">現在のユーザー名: 未設定</span>
     </div>
   </div>
 
-  <!-- Firebase SDK v9 -->
+  <!-- アプリスクリプト -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import {
@@ -60,22 +61,22 @@
       doc, setDoc, getDoc
     } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-    // Firebase設定（Firebase Consoleからコピー）
+    // Firebase設定（あなたの値に置き換え）
     const firebaseConfig = {
-      apiKey: "AIzaSyAoW1t-VsQwbr5sJAPi2zLjeox363Mbq5I",
-      authDomain: "shige-live-b70a7.firebaseapp.com",
-      projectId: "shige-live-b70a7",
+      apiKey: "YOUR_API_KEY",
+      authDomain: "shigeshige-video.firebaseapp.com",
+      projectId: "shigeshige-video"
     };
 
-    // 初期化
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
     const statusEl = document.getElementById("status");
     const messagesEl = document.getElementById("messages");
+    const currentUsernameEl = document.getElementById("currentUsername");
 
-    function setStatus(msg, type="info") {
+    function setStatus(msg, type = "info") {
       statusEl.textContent = msg;
       statusEl.className = type;
     }
@@ -84,10 +85,10 @@
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setStatus(`ログイン中：${user.email}`, "info");
-        await loadProfileImage();
+        await loadUsername();
       } else {
         setStatus("未ログイン", "info");
-        document.getElementById("preview").src = "";
+        currentUsernameEl.textContent = "現在のユーザー名: 未設定";
       }
     });
 
@@ -97,14 +98,13 @@
       const password = document.getElementById("password").value;
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
-        const user = cred.user;
-        await setDoc(doc(db, "users", user.uid), {
-          email: user.email,
+        await setDoc(doc(db, "users", cred.user.uid), {
+          email: cred.user.email,
           createdAt: new Date(),
-          profileImageUrl: null,
+          username: "新規ユーザー",
           points: 0
         });
-        setStatus("登録成功: " + user.email, "info");
+        setStatus("登録成功: " + cred.user.email, "info");
       } catch (err) {
         setStatus("登録エラー: " + err.message, "error");
       }
@@ -140,7 +140,7 @@
         await setDoc(doc(db, "users", result.user.uid), {
           email: result.user.email,
           createdAt: new Date(),
-          profileImageUrl: null,
+          username: "Googleユーザー",
           points: 0
         }, { merge: true });
         setStatus("Googleログイン成功: " + result.user.email, "info");
@@ -149,17 +149,20 @@
       }
     }
 
-    // コメント送信（4時間で期限切れ）
+    // コメント送信
     async function sendComment() {
       const comment = document.getElementById("comment").value.trim();
       const user = auth.currentUser;
-      if (!user) { alert("ログインしてください"); return; }
+      if (!user) { setStatus("ログインしてください", "error"); return; }
       if (!comment) { setStatus("コメントを入力してください", "error"); return; }
       try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.data();
+        const username = data?.username || user.email;
         const now = Date.now();
         await addDoc(collection(db, "comments"), {
           text: comment,
-          user: user.email,
+          user: username,
           timestamp: Timestamp.now(),
           expireAt: Timestamp.fromDate(new Date(now + 4 * 60 * 60 * 1000))
         });
@@ -170,7 +173,7 @@
       }
     }
 
-    // コメントリアルタイム表示（期限切れは非表示）
+    // コメントリアルタイム表示
     const q = query(collection(db, "comments"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       messagesEl.innerHTML = "";
@@ -186,102 +189,22 @@
       });
     });
 
-    // GitHubに画像アップロードしてFirestoreに保存
-    async function uploadProfileImage() {
+    // ユーザー名変更
+    async function changeUsername() {
       const user = auth.currentUser;
-      if (!user) { alert("ログインしてください"); return; }
-
-      const file = document.getElementById("uploadImage").files[0];
-      if (!file) { alert("ファイルを選択してください"); return; }
-
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result.split(",")[1];
-
-        // GitHub API（contents API）でファイル作成 / 更新
-        const repoOwner = "dabin2011";               // ← GitHubユーザー名
-        const repoName  = "shigex-images";            // ← リポジトリ名
-        const folder    = "profiles";                 // ← 画像フォルダ
-        const fileName  = `${user.uid}.jpg`;          // ← uidで一意管理
-        const githubToken = "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";      // ← PAT（repo権限）
-
-        const urlForPut = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folder}/${fileName}`;
-
-        // 既存ファイルがある場合はshaが必要なので取得（なければ404 → 新規作成）
-        let existingSha = null;
-        try {
-          const headRes = await fetch(urlForPut, {
-            headers: { "Authorization": `token ${githubToken}` }
-          });
-          if (headRes.ok) {
-            const headJson = await headRes.json();
-            existingSha = headJson.sha;
-          }
-        } catch (e) {
-          // 取得失敗は新規作成として継続
-        }
-
-        const putBody = {
-          message: `Upload profile image for ${user.uid}`,
-          content: base64,
-          ...(existingSha ? { sha: existingSha } : {})
-        };
-
-        const putRes = await fetch(urlForPut, {
-          method: "PUT",
-          headers: {
-            "Authorization": `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`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(putBody)
-        });
-
-        if (!putRes.ok) {
-          const errText = await putRes.text();
-          setStatus("GitHubアップロード失敗: " + errText, "error");
-          return;
-        }
-
-        // 公開URL（raw.githubusercontent.com）
-        const publicUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${folder}/${fileName}`;
-
-        // Firestoreに保存
-        await setDoc(doc(db, "users", user.uid), {
-          profileImageUrl: publicUrl
-        }, { merge: true });
-
-        // 画像キャッシュ破棄のためのクエリ付与（更新直後の反映を安定させる）
-        const bust = publicUrl + `?t=${Date.now()}`;
-        document.getElementById("preview").src = bust;
-        setStatus("プロフィール画像を更新しました！", "info");
-      };
-
-      reader.readAsDataURL(file);
-    }
-
-    // Firestoreからプロフィール画像を読み込む
-    async function loadProfileImage() {
-      const user = auth.currentUser;
-      if (!user) return;
+      if (!user) { setStatus("ログインしてください", "error"); return; }
+      const newName = document.getElementById("newUsername").value.trim();
+      if (!newName) { setStatus("新しいユーザー名を入力してください", "error"); return; }
       try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        const data = snap.data();
-        if (data && data.profileImageUrl) {
-          // 初回表示（キャッシュ対策）
-          document.getElementById("preview").src = data.profileImageUrl + `?t=${Date.now()}`;
-        }
+        await setDoc(doc(db, "users", user.uid), {
+          username: newName
+        }, { merge: true });
+        currentUsernameEl.textContent = "現在のユーザー名: " + newName;
+        setStatus("ユーザー名を変更しました", "info");
       } catch (err) {
-        setStatus("プロフィール画像読み込みエラー: " + err.message, "error");
+        setStatus("ユーザー名変更エラー: " + err.message, "error");
       }
     }
-  </script>
 
-  <!-- 使い方メモ（開発中はコメントアウトでOK）
-  1) 上記の firebaseConfig をあなたの値に置き換える
-  2) GitHub: 公開リポジトリ shigex-images を作成し、profiles/ フォルダを用意
-  3) 変数 repoOwner, repoName, folder, YOUR_GITHUB_TOKEN を設定
-  4) トークンは repo スコープを付与した PAT を使用
-  5) セキュリティのため、本番はトークンをフロントに置かず、Cloud Functions や軽いバックエンド経由にする
-  -->
-</body>
-</html>
+    // Firestoreからユーザー名読み込み
+    async function
